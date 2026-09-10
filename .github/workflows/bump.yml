@@ -1,0 +1,80 @@
+name: bump
+
+# uv releases every few days, so check daily and open a pull request whenever
+# upstream is ahead of the formula.
+#
+# This deliberately does not use `brew bump`. That command rewrites a formula
+# through `Utils::AST#replace_stable_stanza_value`, which resolves a stanza
+# with a flat `select` over the formula's top-level children (Homebrew/brew
+# `utils/ast.rb:331`). This formula keeps its `url` and `sha256` inside
+# `on_arm`/`on_intel` blocks so one formula can serve both architectures, so
+# `brew bump` raises "Could not find 'sha256' stanza!" instead. The rewrite
+# lives in `.github/scripts/bump.py`.
+
+on:
+  schedule:
+    # Daily at 11:55 UTC.
+    - cron: 55 11 * * *
+  workflow_dispatch:
+
+permissions: {}
+
+defaults:
+  run:
+    shell: bash -xeuo pipefail {0}
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Check out the tap
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Rewrite the formula if upstream is ahead
+        id: bump
+        run: |
+          version="$(python3 .github/scripts/bump.py)"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          [ -n "$version" ] || echo "formula is already current, nothing to do"
+
+      - name: Write the pull request body
+        if: steps.bump.outputs.version != ''
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          cat > /tmp/pr-body.md <<EOF
+          Upstream released [uv ${VERSION}](https://github.com/astral-sh/uv/releases/tag/${VERSION}).
+
+          Checksums come from the \`.sha256\` sidecars Astral publishes next to each release asset rather than being recomputed here, so they are the values upstream vouches for.
+
+          Note that the \`tests\` workflow does not start on its own for this pull request, because events triggered by the \`GITHUB_TOKEN\` do not create a new workflow run. Run \`tests\` manually against this branch before merging, or configure a \`BUMP_TOKEN\` as described in the README.
+          EOF
+
+      - name: Open a pull request
+        if: steps.bump.outputs.version != ''
+        env:
+          # bump.py validates this against /\A\d+(\.\d+){1,3}\Z/ before it ever
+          # reaches the formula, so there is nothing shell-significant in it.
+          VERSION: ${{ steps.bump.outputs.version }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          branch="bump-uv-signed-${VERSION}"
+
+          # Identity is passed per invocation rather than written to the
+          # runner's git config, since nothing else here needs it.
+          git -c "user.name=github-actions[bot]" \
+              -c "user.email=41898282+github-actions[bot]@users.noreply.github.com" \
+              checkout -b "$branch"
+          git -c "user.name=github-actions[bot]" \
+              -c "user.email=41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -m "uv-signed ${VERSION}" -- Formula/uv-signed.rb
+          git push origin "$branch"
+
+          gh pr create \
+            --title "uv-signed ${VERSION}" \
+            --body-file /tmp/pr-body.md \
+            --head "$branch" \
+            --base main

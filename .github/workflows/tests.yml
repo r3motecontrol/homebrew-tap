@@ -1,0 +1,74 @@
+name: tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  # So a bump branch opened by the `bump` workflow can be verified by hand.
+  # A pull request created with the GITHUB_TOKEN does not start this workflow
+  # on its own.
+  workflow_dispatch:
+
+permissions: {}
+
+defaults:
+  run:
+    shell: bash -xeuo pipefail {0}
+
+jobs:
+  # Formula syntax and audit. Nothing is compiled, so Linux is fine.
+  syntax:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/homebrew/brew:main # zizmor: ignore[unpinned-images]
+      options: --privileged
+    permissions:
+      contents: read
+    steps:
+      - name: Set up Homebrew
+        uses: Homebrew/actions/setup-homebrew@a657b8b0cd35d0f65cce41fce9b24cf054b49869 # 2026.08.24.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - run: brew test-bot --only-cleanup-before
+      - run: brew test-bot --only-setup
+      - run: brew test-bot --only-tap-syntax
+
+  # The claim this tap exists to make: a Homebrew install of the upstream
+  # release leaves Astral's Developer ID signature and notarization intact.
+  signature:
+    runs-on: macos-26
+    permissions:
+      contents: read
+    steps:
+      - name: Set up Homebrew
+        id: set-up-homebrew
+        uses: Homebrew/actions/setup-homebrew@a657b8b0cd35d0f65cce41fce9b24cf054b49869 # 2026.08.24.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install uv-signed
+        env:
+          TAP_NAME: ${{ steps.set-up-homebrew.outputs.tap-name }}
+        run: |
+          brew uninstall --ignore-dependencies uv || true
+          brew install --formula "$TAP_NAME/uv-signed"
+
+      - name: Assert Developer ID signature and notarization
+        run: |
+          uv_bin="$(brew --prefix)/bin/uv"
+          codesign -dv --verbose=2 "$uv_bin" 2>&1 | tee /tmp/codesign.txt
+          grep -q 'TeamIdentifier=2DC432GLL2' /tmp/codesign.txt
+          grep -q 'Developer ID Application: OpenAI OpCo, LLC (2DC432GLL2)' /tmp/codesign.txt
+          ! grep -q 'adhoc' /tmp/codesign.txt
+          spctl -a -vvv -t install "$uv_bin"
+
+      - name: Show that the homebrew-core build is not signed, for contrast
+        env:
+          TAP_NAME: ${{ steps.set-up-homebrew.outputs.tap-name }}
+        run: |
+          brew uninstall --ignore-dependencies "$TAP_NAME/uv-signed"
+          brew install --formula uv
+          codesign -dv --verbose=2 "$(brew --prefix)/bin/uv" 2>&1 | tee /tmp/core.txt
+          grep -q 'adhoc' /tmp/core.txt
