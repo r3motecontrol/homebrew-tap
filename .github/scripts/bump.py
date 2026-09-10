@@ -6,8 +6,8 @@ Homebrew's own `brew bump` cannot be used here. It rewrites a formula through
 `select` over the formula's top-level children (Homebrew/brew
 `utils/ast.rb:331`). This formula keeps its `url` and `sha256` inside
 `on_macos`/`on_arm`/`on_intel` blocks so it can serve both architectures, so
-`stable_stanza(:sha256)` finds nothing and raises "Could not find 'sha256'
-stanza!". Hence this script.
+the lookup finds nothing at the top level and fails with "Error: Could not
+find 'url' stanza!". Hence this script.
 
 It prints the new version to stdout if it rewrote the formula and prints
 nothing if the formula was already current, so a workflow can branch on

@@ -8,8 +8,8 @@ name: bump
 # with a flat `select` over the formula's top-level children (Homebrew/brew
 # `utils/ast.rb:331`). This formula keeps its `url` and `sha256` inside
 # `on_arm`/`on_intel` blocks so one formula can serve both architectures, so
-# `brew bump` raises "Could not find 'sha256' stanza!" instead. The rewrite
-# lives in `.github/scripts/bump.py`.
+# `brew bump` fails with "Error: Could not find 'url' stanza!" instead. The
+# rewrite lives in `.github/scripts/bump.py`.
 
 on:
   schedule:

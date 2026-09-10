@@ -64,7 +64,14 @@ def matching_stanzas(nodes, name, type: nil)
 end
 ```
 
-There is no recursion into block bodies. Because this formula keeps `url` and `sha256` inside `on_arm` and `on_intel` so that one formula can serve both architectures, the lookup finds nothing at the top level and `stable_stanza` raises `Could not find 'sha256' stanza!`. Any binary tap serving more than one architecture will hit the same wall.
+There is no recursion into block bodies. Because this formula keeps `url` and `sha256` inside `on_arm` and `on_intel` so that one formula can serve both architectures, the lookup finds nothing at the top level and `stable_stanza` raises. Confirmed against this tap:
+
+```
+$ brew bump-formula-pr --dry-run --version=0.12.11 r3motecontrol/tap/uv-signed
+Error: Could not find 'url' stanza!
+```
+
+Any binary tap serving more than one architecture hits the same wall.
 
 `.github/scripts/bump.py` replaces it. It reads the latest tag from the GitHub API, rejects anything that is not a plain dotted version, then takes each architecture's checksum from the `.sha256` sidecar upstream publishes rather than recomputing it locally, and rewrites the two `url`/`sha256` pairs with a pattern anchored on the architecture in the filename so the blocks cannot be confused for each other. It prints the new version if it changed the formula and prints nothing if there was nothing to do.
 
