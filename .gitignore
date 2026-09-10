@@ -1,2 +1,6 @@
 __pycache__/
 *.pyc
+
+# Written by `brew test-bot` when it is run inside the tap.
+steps_output.txt
+*.bottle.*

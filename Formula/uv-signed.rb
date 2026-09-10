@@ -1,6 +1,8 @@
 class UvSigned < Formula
   desc "Developer ID signed upstream build of the uv Python package manager"
   homepage "https://docs.astral.sh/uv/"
+  url "https://github.com/astral-sh/uv/releases/download/0.12.12/uv-aarch64-apple-darwin.tar.gz"
+  sha256 "46740540b63fdee9a6cb2e19baf3f1f475b850c440a33e63455087a6871263f1"
   license any_of: ["Apache-2.0", "MIT"]
 
   livecheck do
@@ -8,11 +10,13 @@ class UvSigned < Formula
     strategy :github_latest
   end
 
+  # Astral signs only the macOS artifacts. The top-level URL is the Apple
+  # Silicon build, and it also keeps the spec valid on Linux, which
+  # `brew readall` simulates for any formula with `on_system` blocks.
+  depends_on :macos
+
+  # `url` and `sha256` are only allowed in an arch block at this depth.
   on_macos do
-    on_arm do
-      url "https://github.com/astral-sh/uv/releases/download/0.12.12/uv-aarch64-apple-darwin.tar.gz"
-      sha256 "46740540b63fdee9a6cb2e19baf3f1f475b850c440a33e63455087a6871263f1"
-    end
     on_intel do
       url "https://github.com/astral-sh/uv/releases/download/0.12.12/uv-x86_64-apple-darwin.tar.gz"
       sha256 "0dc8cd6c961582b0d140b5398f96b23502885277fb3464241456a2435e460dfa"

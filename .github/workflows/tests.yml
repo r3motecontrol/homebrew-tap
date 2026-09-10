@@ -27,9 +27,17 @@ jobs:
       contents: read
     steps:
       - name: Set up Homebrew
+        id: set-up-homebrew
         uses: Homebrew/actions/setup-homebrew@a657b8b0cd35d0f65cce41fce9b24cf054b49869 # 2026.08.24.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Without this, every check below reports success while doing nothing:
+      # "Skipping <tap> because it is not trusted".
+      - name: Trust the tap
+        env:
+          TAP_NAME: ${{ steps.set-up-homebrew.outputs.tap-name }}
+        run: brew trust "$TAP_NAME"
 
       - run: brew test-bot --only-cleanup-before
       - run: brew test-bot --only-setup
@@ -52,6 +60,7 @@ jobs:
         env:
           TAP_NAME: ${{ steps.set-up-homebrew.outputs.tap-name }}
         run: |
+          brew trust "$TAP_NAME"
           brew uninstall --ignore-dependencies uv || true
           brew install --formula "$TAP_NAME/uv-signed"
 
@@ -61,8 +70,16 @@ jobs:
           codesign -dv --verbose=2 "$uv_bin" 2>&1 | tee /tmp/codesign.txt
           grep -q 'TeamIdentifier=2DC432GLL2' /tmp/codesign.txt
           grep -q 'Developer ID Application: OpenAI OpCo, LLC (2DC432GLL2)' /tmp/codesign.txt
-          ! grep -q 'adhoc' /tmp/codesign.txt
           spctl -a -vvv -t install "$uv_bin"
+
+          # Written as an explicit `if` rather than `! grep -q ...`, because
+          # bash does not apply `errexit` to a command whose status is inverted
+          # with `!`, so the negated form would report nothing and pass
+          # (shellcheck SC2251).
+          if grep -q 'adhoc' /tmp/codesign.txt; then
+            echo "::error::uv is ad-hoc signed; expected Astral's Developer ID" >&2
+            exit 1
+          fi
 
       - name: Show that the homebrew-core build is not signed, for contrast
         env:
