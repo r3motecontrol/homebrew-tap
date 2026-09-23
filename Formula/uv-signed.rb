@@ -1,8 +1,8 @@
 class UvSigned < Formula
   desc "Developer ID signed upstream build of the uv Python package manager"
   homepage "https://docs.astral.sh/uv/"
-  url "https://github.com/astral-sh/uv/releases/download/0.12.12/uv-aarch64-apple-darwin.tar.gz"
-  sha256 "46740540b63fdee9a6cb2e19baf3f1f475b850c440a33e63455087a6871263f1"
+  url "https://github.com/astral-sh/uv/releases/download/0.12.18/uv-aarch64-apple-darwin.tar.gz"
+  sha256 "cf40e0c6a202190ccd9e0406dcfdd5b2d6668a9a5c779b17948963df32aafe5b"
   license any_of: ["Apache-2.0", "MIT"]
 
   livecheck do
@@ -18,8 +18,8 @@ class UvSigned < Formula
   # `url` and `sha256` are only allowed in an arch block at this depth.
   on_macos do
     on_intel do
-      url "https://github.com/astral-sh/uv/releases/download/0.12.12/uv-x86_64-apple-darwin.tar.gz"
-      sha256 "0dc8cd6c961582b0d140b5398f96b23502885277fb3464241456a2435e460dfa"
+      url "https://github.com/astral-sh/uv/releases/download/0.12.18/uv-x86_64-apple-darwin.tar.gz"
+      sha256 "2e4108f5395397c8bc5d43bf83d3bdbb2d0e92b90d0efa607756be704905fa33"
     end
   end
 
